@@ -40,8 +40,8 @@ def read_data(train_size=None, test_size=None):
 
     return data
 
-def sigmoid_activation(x):
-    return 1.0/(1.0 + np.exp(-x))
+def sigmoid_activation(net_input):
+    return 1.0/(1.0 + np.exp(-net_input))
 
 def softmax_activation(net_input):
     '''Input n x 10 numpy array and Outputs a nx10 numpy array where the rows will sum to 1'''
@@ -52,3 +52,31 @@ def softmax_activation(net_input):
 
     return retval
 
+def cross_entropy_loss_softmax(actuals, predicted):
+    '''
+    Actuals   - nX10, 1-Hot encoded
+    Predicted - nX10, softmax values
+    Return    - scalar value for loss
+    '''
+    assert (actuals.shape == predicted.shape)
+
+    loss = 0.0
+    loss = np.sum(actuals * np.log(predicted), axis=(1, 0))
+
+    return -loss / actuals.shape[0]
+
+def accuracy(actuals, predictions, softmax=True):
+    '''Computes the percent accuracy of a model.'''
+
+    if not softmax:
+        raise Exception("ERROR cannot compute accuracy for non-softmax 1-hot models.")
+
+    # From 1-Hot encoding to [0-9]
+    func = lambda lis: np.argmax(lis, axis=1)
+    actuals = func(actuals)
+    predictions = func(predictions)
+
+    correct = np.sum([actual == pred for actual, pred in zip(actuals, predictions)])
+    accuracy = correct / actuals.shape[0]
+
+    return accuracy
