@@ -49,20 +49,8 @@ class MLP(object):
         np.delete(xTrain, indices, axis=0)
         np.delete(yTrain, indices, axis=0)
 
-        # TODO Delete this truncation in final iterations
-        # xTrain = xTrain[:1000, :]
-        # yTrain = yTrain[:1000, :]
 
         datasets = {'train': xTrain, 'valid': xValid, 'test': xTest}
-
-
-
-
-
-
-
-
-    # Machine learning stars here
 
         weights = []
         net_inputs = []
@@ -74,11 +62,11 @@ class MLP(object):
         # Initialize weights list indexing into each layer (looks good)
         for layer in range(self.num_layers):
             if layer == 0: # layer0
-                weights.append(np.random.normal(loc=0, scale=5, size=(self.dims, self.hidden_units)))
+                weights.append(np.random.normal(loc=0, scale=1, size=(self.dims, self.hidden_units)))
             elif layer < self.num_layers - 1: # hidden layers
-                weights.append(np.random.normal(loc=0, scale=5, size=(self.hidden_units, self.hidden_units)))
+                weights.append(np.random.normal(loc=0, scale=1, size=(self.hidden_units, self.hidden_units)))
             else: # last layer
-                weights.append(np.random.normal(loc=0, scale=5, size=(self.hidden_units, self.output_units)))
+                weights.append(np.random.normal(loc=0, scale=1, size=(self.hidden_units, self.output_units)))
 
 
         # Iterate over epochs!
@@ -92,42 +80,35 @@ class MLP(object):
                     net_outputs.append(self.hidden_activation(net_inputs[layer]))
                 elif layer < self.num_layers - 1:
                     net_inputs.append(np.dot(net_outputs[layer-1], weights[layer]))
-                    net_outputs.append(self.hidden_activation(net_inputs[layer]))
+                    net_outputs.append(self.hidden_activation(net_inputs[-1]))
                 else:
                     net_inputs.append(np.dot(net_outputs[layer-1], weights[layer]))
-                    net_outputs.append(self.output_activation(net_inputs[layer]))
-
-
-
+                    net_outputs.append(self.output_activation(net_inputs[-1]))
 
             # Backprop of partial gradients via deltas
             for layer in range(self.num_layers-1, -1, -1):
-                print(layer)
+                # print(layer)
 
 
                 if layer == self.num_layers-1:
                     deltas.append(yTrain - net_outputs[-1])
                 else:
-                    # TODO Check if derivative! is in fact g(1-g) and validate outputs
-
-                    # delta = utilities.sigmoid_activation(net_inputs[layer]) * \
-                    #         np.dot(deltas[-1], weights[layer+1].T)
-
                     delta = net_outputs[layer]*(1 - net_outputs[layer]) * np.dot(deltas[-1], weights[layer+1].T)
-
                     deltas.append(delta)
 
             deltas = list(reversed(deltas))
-            # sys.exit()
 
 
             # Update weights via gradient descent
             for layer in range(self.num_layers):
-                if layer == 0:
-                    weights[layer] += learning_rate * np.dot(xTrain.T, deltas[layer])
-                else:
-                    weights[layer] += learning_rate * np.dot(net_outputs[layer-1].T, deltas[layer])
 
+                if layer == 0:
+                    grad = np.dot(xTrain.T, deltas[layer])
+                    weights[layer] += learning_rate * np.dot(xTrain.T, deltas[layer])
+
+                else:
+                    grad = np.dot(net_outputs[layer-1].T, deltas[layer])
+                    weights[layer] += learning_rate * np.dot(net_outputs[layer-1].T, deltas[layer])
 
             # Regularization
             if reg == 'L2':
@@ -149,7 +130,7 @@ class MLP(object):
             # print(np.argmax(yTrain, axis=1)[:10], np.argmax(net_outputs[-1], axis=1)[:10])
             # sys.exit()
 
-            train_accuracy.append(utilities.accuracy(yTrain, net_outputs[-1])) #TODO Changes predictions to netout bc 1hot
+            train_accuracy.append(utilities.accuracy(yTrain, net_outputs[-1])) #TODO Changed predictions to netout bc 1hot
             # valid_accuracy.append(accuracy_softmax(yValid, predictions_valid))
             # test_accuracy.append(accuracy_softmax(yTest, predictions_test))
 
