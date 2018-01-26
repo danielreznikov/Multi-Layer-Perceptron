@@ -40,6 +40,23 @@ def read_data(train_size=None, test_size=None):
 
     return data
 
+def split_data(data):
+    # Split Data into Train, Test, and Validation
+    xTrain = np.copy(data['xTrain'])
+    yTrain = np.copy(data['yTrain'])
+    xTest = np.copy(data['xTest'])
+    yTest = np.copy(data['yTest'])
+
+    # Randomly split data into train and validation
+    np.random.seed(2018)
+    indices = np.random.randint(0, xTrain.shape[0], xTrain.shape[0] // 10)
+    xValid = xTrain[indices]
+    yValid = yTrain[indices]
+    np.delete(xTrain, indices, axis=0)
+    np.delete(yTrain, indices, axis=0)
+
+    return xTrain, yTrain, xValid, yValid, xTest, yTest
+
 def sigmoid_activation(net_input):
     return 1.0/(1.0 + np.exp(-net_input))
 
@@ -51,8 +68,6 @@ def softmax_activation(net_input):
     assert (retval.shape == net_input.shape)
 
     return retval
-
-
 
 def cross_entropy_loss(actuals, predicted, softmax=True):
     '''
@@ -89,7 +104,6 @@ def gradient_approximation(exemplar, actual, weight, epsilon, softmax):
         predicted2 = softmax_activation(exemplar * (weight - epsilon))
 
         return (cross_entropy_loss(actual, predicted1, True) - cross_entropy_loss(actual, predicted2, True)) / (2 * epsilon)
-
 
 def accuracy(actuals, predictions, softmax=True):
     '''Computes the percent accuracy of a model.'''

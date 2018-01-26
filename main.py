@@ -10,52 +10,21 @@ import sys
 
 def main():
     data = utilities.read_data(train_size=20000, test_size=2000)
+    xTrain, yTrain, xValid, yValid, xTest, yTest = utilities.split_data(data)
 
     # Initialize MLP Object
-    mlp = MLP(input_units=785, hidden_layers=1, hidden_units=64, output_units=10)
-
-    # Split Data into Train, Test, and Validation
-    xTrain = np.copy(data['xTrain'])
-    yTrain = np.copy(data['yTrain'])
-    xTest = np.copy(data['xTest'])
-    yTest = np.copy(data['yTest'])
-
-
-    # Randomly split data into train and validation
-    np.random.seed(2018)
-    indices = np.random.randint(0, xTrain.shape[0], xTrain.shape[0] // 10)
-    xValid = xTrain[indices]
-    yValid = yTrain[indices]
-    np.delete(xTrain, indices, axis=0)
-    np.delete(yTrain, indices, axis=0)
+    mlp = MLP(input_units=785, hidden_layers=2, hidden_units=65, output_units=10)
 
     # Train the Model on the Training Set
-    num_epochs = 100
-
-
-    mlp.train_non_modular(xTrain, yTrain, max_epochs=num_epochs, learning_rate_init=0.005, annealing=num_epochs*.90, batch_size=200, shuffle=True, gradient_checking=True)
-
-    # weights, accuracies = mlp.train(data, max_epochs=num_epochs, learning_rate_init=0.00005, lam=0, reg=None, annealing=10, batch_size=50, shuffle=False)
-
-
+    num_epochs = 10
+    mlp.train(xTrain, yTrain, max_epochs=num_epochs, learning_rate_init=0.005, annealing=num_epochs * .90, batch_size=200, shuffle=True, gradient_checking=False)
 
     # Evaluate on a Test Set to Measure Model Performance
-    # predictions = mlp.evaluate(xTest)
-    # accuracy = utilities.accuracy(yTest, predictions, softmax=True)
-    # print('Test Accuracy: ', accuracy)
+    predictions = mlp.get_model_predictions(xTest)
+    accuracy = utilities.accuracy(yTest, predictions, softmax=True)
+    print('Test Accuracy: ', accuracy)
 
     # Display Accuracy and Loss over Epochs to Show Convergence of Model
     mlp.train_diagnostics()
-
-
-
-
-    # x = np.arange(num_epochs)
-    # plt.plot(x, accuracies['train_acc'])
-    # plt.xlabel('epoch')
-    # plt.ylabel('Percent Accuracy')
-    # # plt.legend(['train_acc', 'valid_acc', 'test_acc'], loc='upper right')
-    # plt.show()
-
 
 main()
