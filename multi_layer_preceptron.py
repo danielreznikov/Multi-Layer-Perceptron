@@ -1,5 +1,7 @@
 import numpy as np
 import utilities
+from matplotlib import pyplot as plt
+from time import time
 import sys
 
 class MLP(object):
@@ -14,6 +16,14 @@ class MLP(object):
         self.output_units = output_units
         self.dims = 785
         self.num_layers = hidden_layers + 1
+
+        self.sigmoid_weights = 0
+        self.softmax_weights = 0
+
+        self.accuracy_over_epoch = []
+        self.loss_over_epoch = []
+
+
 
         if hidden_activation == 'sigmoid':
             self.hidden_activation = utilities.sigmoid_activation
@@ -84,7 +94,8 @@ class MLP(object):
         # Iterate over epochs
         for epoch in range(max_epochs):
             for train, labels in batches:
-                learning_rate = learning_rate_init / (1 + epoch / annealing)
+                # learning_rate = learning_rate_init / (1 + epoch / annealing)
+                learning_rate = learning_rate_init
 
                 # Forward propogation to get model weights
                 for layer in range(self.num_layers):
@@ -159,4 +170,129 @@ class MLP(object):
 
         # return weights, losses, weights_record, accuracies
         return weights, accuracies
+
+    def train_non_modular(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100):
+
+        # Initialize Weights as Random
+
+        W_hidden1 = np.random.normal(loc=0, scale=1/np.sqrt(self.input_units), size=(self.input_units, self.hidden_units))
+        # W_hidden2 = np.random.normal(loc=0, scale=1/np.sqrt(hidden_units1), size=(hidden_units1, hidden_units2))
+        W_output = np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
+
+        # Start a Timer for Training
+        strt = time()
+        print("Training...")
+
+        # Iterate
+        for epoch in range(max_epochs):
+
+            alpha = learning_rate_init / (1 + epoch / annealing)
+
+            # Forward Prop
+
+            # Layer 1
+            net_input_h1 = np.dot(x, W_hidden1)
+            hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
+
+            # Layer 2
+            # net_input_h2 = np.dot(hidden_layer_out1, W_hidden2)
+            # hidden_layer_out2 = utilities.sigmoid_activation(net_input_h2)
+
+            # Output Layer
+            net_input_o = np.dot(hidden_layer_out1, W_output)
+            y = utilities.softmax_activation(net_input_o)
+
+            # Back Prop (deltas)
+            delta_output = (t - y)
+            # delta_hidden2 = utilities.sigmoid_activation(net_input_h2) * (1 - utilities.sigmoid_activation(net_input_h2)) * np.dot(delta_output, W_output.T)
+            delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output.T)
+
+            # Gradient Descent
+            W_output = W_output + alpha * np.dot(hidden_layer_out1.T, delta_output)
+            # W_hidden2 = W_hidden2 + alpha * np.dot(hidden_layer_out1.T, delta_hidden2)
+            W_hidden1 = W_hidden1 + alpha * np.dot(x.T, delta_hidden1)
+
+
+            # Store Accuracies over Epochs
+            accuracy = utilities.accuracy(t, y)
+            self.accuracy_over_epoch.append(accuracy)
+
+            # Store Cross-Entropy Loss over Epochs
+            loss = utilities.cross_entropy_loss(t, y)
+            self.loss_over_epoch.append(loss)
+
+
+
+        print('Training Done! Took', time() - strt, " secs.")
+        print('Final Training Accuracy: ', self.accuracy_over_epoch[-1])
+
+        # Store the Model
+        self.sigmoid_weights = W_hidden1
+        self.softmax_weights = W_output
+
+        return None
+
+
+    def evaluate(self, inputs):
+        """ Perform Forward Prop with Curren Saved Weights
+            Outputs Model Predictions for Data """
+
+        # Layer 1
+        net_input_h1 = np.dot(inputs, self.sigmoid_weights)
+        hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
+
+        # Layer 2
+        # net_input_h2 = np.dot(hidden_layer_out1, W_hidden2)
+        # hidden_layer_out2 = utilities.sigmoid_activation(net_input_h2)
+
+        net_input_o = np.dot(hidden_layer_out1, self.softmax_weights)
+        y = utilities.softmax_activation(net_input_o)
+
+        return y
+
+
+
+
+    def disp_train_accuracy(self):
+        num_epochs = len(self.accuracy_over_epoch)
+
+        plt.plot(np.arange(num_epochs), self.accuracy_over_epoch)
+        plt.xlabel('Epochs')
+        plt.ylabel('Training Accuracy')
+        plt.title('Training Accuracy Over Epochs')
+        plt.show()
+
+        return None
+
+
+    def disp_train_loss(self):
+        num_epochs = len(self.loss_over_epoch)
+
+        plt.plot(np.arange(num_epochs), self.loss_over_epoch)
+        plt.xlabel('Epochs')
+        plt.ylabel('Training Loss')
+        plt.title('Training Cross-Entropy Loss Over Epochs')
+        plt.show()
+
+        return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

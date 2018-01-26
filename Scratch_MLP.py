@@ -86,8 +86,8 @@ for i in range(epochs):
 
     # Back Prop
     delta_output = (t - y)
-    delta_hidden2 = sigmoid(net_input_h2) * np.dot(delta_output, W_output.T)
-    delta_hidden1 = sigmoid(net_input_h1) * np.dot(delta_hidden2, W_hidden2.T)
+    delta_hidden2 = sigmoid(net_input_h2) * (1-sigmoid(net_input_h2)) * np.dot(delta_output, W_output.T)
+    delta_hidden1 = sigmoid(net_input_h1) * (1 - sigmoid(net_input_h1)) * np.dot(delta_hidden2, W_hidden2.T)
 
     W_output = W_output + alpha * np.dot(hidden_layer_out2.T, delta_output)
     W_hidden2 = W_hidden2 + alpha * np.dot(hidden_layer_out1.T, delta_hidden2)

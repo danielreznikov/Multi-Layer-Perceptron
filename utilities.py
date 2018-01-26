@@ -19,7 +19,7 @@ def read_data(train_size=None, test_size=None):
 
     xTest = np.array(test_images)[-2000:][:test_size]
     xTest = np.divide(xTest, 127.5)
-    xTest = np.subtract(xTrain, 1)
+    xTest = np.subtract(xTest, 1)
     xTest = np.insert(xTest, 0, 1, axis=1)
     yTest = np.array(test_labels)[-2000:][:test_size]
 
@@ -52,7 +52,9 @@ def softmax_activation(net_input):
 
     return retval
 
-def cross_entropy_loss(actuals, predicted, softmax):
+
+
+def cross_entropy_loss(actuals, predicted, softmax=True):
     '''
     Actuals   - nX10, 1-Hot encoded
     Predicted - nX10, softmax values
