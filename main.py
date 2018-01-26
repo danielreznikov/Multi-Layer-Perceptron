@@ -33,20 +33,19 @@ def main():
     num_epochs = 100
 
 
-    mlp.train_non_modular(xTrain, yTrain, max_epochs=num_epochs, learning_rate_init=0.0001, annealing=num_epochs*.75)
+    mlp.train_non_modular(xTrain, yTrain, max_epochs=num_epochs, learning_rate_init=0.0001, annealing=num_epochs*.90, batch_size=200, shuffle=True)
 
     # weights, accuracies = mlp.train(data, max_epochs=num_epochs, learning_rate_init=0.00005, lam=0, reg=None, annealing=10, batch_size=50, shuffle=False)
 
 
 
     # Evaluate on a Test Set to Measure Model Performance
-    predictions = mlp.evaluate(xTest)
-    accuracy = utilities.accuracy(yTest, predictions, softmax=True)
-    print('Test Accuracy: ', accuracy)
+    # predictions = mlp.evaluate(xTest)
+    # accuracy = utilities.accuracy(yTest, predictions, softmax=True)
+    # print('Test Accuracy: ', accuracy)
 
     # Display Accuracy and Loss over Epochs to Show Convergence of Model
-    mlp.disp_train_accuracy()
-    mlp.disp_train_loss()
+    mlp.train_diagnostics()
 
 
 

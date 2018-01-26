@@ -171,7 +171,23 @@ class MLP(object):
         # return weights, losses, weights_record, accuracies
         return weights, accuracies
 
-    def train_non_modular(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100):
+    def train_non_modular(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False):
+
+        # Mini-batching
+        batches = []
+        num_samples = x.shape[0]
+
+        if shuffle:
+            indices = np.random.permutation(num_samples)
+        else:
+            indices = np.arange(num_samples)
+
+        if batch_size == None:
+            batch_size = num_samples
+
+        for batch_num in range(num_samples // batch_size):
+            indxs = indices[batch_num * batch_size:(batch_num + 1) * batch_size]
+            batches.append((x[indxs], t[indxs]))
 
         # Initialize Weights as Random
 
@@ -185,50 +201,63 @@ class MLP(object):
 
         # Iterate
         for epoch in range(max_epochs):
-
+            # Decay Learning Rate
             alpha = learning_rate_init / (1 + epoch / annealing)
 
-            # Forward Prop
+            # Iterate Over Mini-Batches
+            for x_batch, t_batch in batches:
+                # Forward Prop
 
-            # Layer 1
-            net_input_h1 = np.dot(x, W_hidden1)
-            hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
+                # Layer 1
+                net_input_h1 = np.dot(x_batch, W_hidden1)
+                hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
 
-            # Layer 2
-            # net_input_h2 = np.dot(hidden_layer_out1, W_hidden2)
-            # hidden_layer_out2 = utilities.sigmoid_activation(net_input_h2)
+                # Layer 2
+                # net_input_h2 = np.dot(hidden_layer_out1, W_hidden2)
+                # hidden_layer_out2 = utilities.sigmoid_activation(net_input_h2)
 
-            # Output Layer
-            net_input_o = np.dot(hidden_layer_out1, W_output)
-            y = utilities.softmax_activation(net_input_o)
+                # Output Layer
+                net_input_o = np.dot(hidden_layer_out1, W_output)
+                y = utilities.softmax_activation(net_input_o)
 
-            # Back Prop (deltas)
-            delta_output = (t - y)
-            # delta_hidden2 = utilities.sigmoid_activation(net_input_h2) * (1 - utilities.sigmoid_activation(net_input_h2)) * np.dot(delta_output, W_output.T)
-            delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output.T)
+                # Back Prop (deltas)
+                delta_output = (t_batch - y)
+                # delta_hidden2 = utilities.sigmoid_activation(net_input_h2) * (1 - utilities.sigmoid_activation(net_input_h2)) * np.dot(delta_output, W_output.T)
+                delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output.T)
 
-            # Gradient Descent
-            W_output = W_output + alpha * np.dot(hidden_layer_out1.T, delta_output)
-            # W_hidden2 = W_hidden2 + alpha * np.dot(hidden_layer_out1.T, delta_hidden2)
-            W_hidden1 = W_hidden1 + alpha * np.dot(x.T, delta_hidden1)
+                # Gradient Descent
+                W_output = W_output + alpha * np.dot(hidden_layer_out1.T, delta_output)
+                # W_hidden2 = W_hidden2 + alpha * np.dot(hidden_layer_out1.T, delta_hidden2)
+                W_hidden1 = W_hidden1 + alpha * np.dot(x_batch.T, delta_hidden1)
 
+                # Store the Model
+                self.sigmoid_weights = W_hidden1
+                self.softmax_weights = W_output
+
+
+            predictions = self.evaluate(x)
 
             # Store Accuracies over Epochs
-            accuracy = utilities.accuracy(t, y)
+            accuracy = utilities.accuracy(t, predictions)
             self.accuracy_over_epoch.append(accuracy)
 
             # Store Cross-Entropy Loss over Epochs
-            loss = utilities.cross_entropy_loss(t, y)
+            loss = utilities.cross_entropy_loss(t, predictions)
             self.loss_over_epoch.append(loss)
 
+            if epoch % 10 == 0:
+                print("\nEpoch:", epoch)
+                print("\tAccuracy:", accuracy)
+                print("\tLoss:", loss)
 
 
-        print('Training Done! Took', time() - strt, " secs.")
+        print('\nTraining Done! Took', time() - strt, " secs.")
         print('Final Training Accuracy: ', self.accuracy_over_epoch[-1])
 
         # Store the Model
-        self.sigmoid_weights = W_hidden1
-        self.softmax_weights = W_output
+        # self.sigmoid_weights = W_hidden1
+        # self.softmax_weights = W_output
+
 
         return None
 
@@ -272,6 +301,26 @@ class MLP(object):
         plt.xlabel('Epochs')
         plt.ylabel('Training Loss')
         plt.title('Training Cross-Entropy Loss Over Epochs')
+        plt.show()
+
+        return None
+
+    def train_diagnostics(self):
+
+        plt.subplot(2, 1, 1)
+        num_epochs = len(self.accuracy_over_epoch)
+
+        plt.plot(np.arange(num_epochs), self.accuracy_over_epoch)
+        plt.xlabel('Epochs')
+        plt.ylabel('Training Accuracy')
+        plt.title('Accuracy Vs. Epochs')
+
+        plt.subplot(2, 1, 2)
+        plt.plot(np.arange(num_epochs), self.loss_over_epoch)
+        plt.xlabel('Epochs')
+        plt.ylabel('Training Loss')
+        plt.title('Cross-Entropy Loss Vs. Epochs')
+
         plt.show()
 
         return None
