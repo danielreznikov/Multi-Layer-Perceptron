@@ -52,7 +52,7 @@ def softmax_activation(net_input):
 
     return retval
 
-def cross_entropy_loss_softmax(actuals, predicted):
+def cross_entropy_loss(actuals, predicted, softmax):
     '''
     Actuals   - nX10, 1-Hot encoded
     Predicted - nX10, softmax values
@@ -60,10 +60,34 @@ def cross_entropy_loss_softmax(actuals, predicted):
     '''
     assert (actuals.shape == predicted.shape)
 
-    loss = 0.0
-    loss = np.sum(actuals * np.log(predicted), axis=(1, 0))
+    dims = 785
 
-    return -loss / actuals.shape[0]
+    if softmax:
+        loss = np.sum(actuals * np.log(predicted), axis=(1, 0))
+        return -loss / actuals.shape[0]
+
+    else:
+        loss = np.multiply(actuals, np.log(predicted)) + np.multiply((np.ones((dims, 1)) - actuals), np.log(np.ones((dims, 1)) - predicted))
+        loss = -np.sum(loss) / actuals.shape[0]
+        return loss
+
+def gradient_approximation(exemplar, actual, weight, epsilon, softmax):
+    '''
+    Function computes numerical approximation
+    Returns
+    '''
+    if not softmax:
+        predicted1 = sigmoid_activation(exemplar * (weight + epsilon))
+        predicted2 = sigmoid_activation(exemplar * (weight - epsilon))
+
+        return (cross_entropy_loss(actual, predicted1, False) - cross_entropy_loss(actual, predicted2, False)) / (2 * epsilon)
+
+    else:
+        predicted1 = softmax_activation(exemplar * (weight + epsilon))
+        predicted2 = softmax_activation(exemplar * (weight - epsilon))
+
+        return (cross_entropy_loss(actual, predicted1, True) - cross_entropy_loss(actual, predicted2, True)) / (2 * epsilon)
+
 
 def accuracy(actuals, predictions, softmax=True):
     '''Computes the percent accuracy of a model.'''
@@ -80,3 +104,5 @@ def accuracy(actuals, predictions, softmax=True):
     accuracy = correct / actuals.shape[0]
 
     return accuracy
+
+

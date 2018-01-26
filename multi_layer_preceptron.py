@@ -26,7 +26,7 @@ class MLP(object):
             raise Exception("ERROR: unsuported activation function," + output_activation)
 
 
-    def train(self, data, max_epochs=100, learning_rate_init=0.0001, lam=0, reg=None, annealing=100):
+    def train(self, data, max_epochs=100, learning_rate_init=0.0001, lam=0, reg=None, annealing=100, batch_size=None, shuffle=False):
 
         xTrain = np.copy(data['xTrain'])
         yTrain = np.copy(data['yTrain'])
@@ -42,6 +42,13 @@ class MLP(object):
         # valid_accuracy = []
         # test_accuracy = []
 
+        weights = []
+        net_inputs = []
+        net_outputs = []
+        deltas = []
+
+        np.random.seed(2018)
+
         # Split data into train and validation
         indices = np.random.randint(0, xTrain.shape[0], xTrain.shape[0] // 10)
         xValid = xTrain[indices]
@@ -49,15 +56,21 @@ class MLP(object):
         np.delete(xTrain, indices, axis=0)
         np.delete(yTrain, indices, axis=0)
 
-
         datasets = {'train': xTrain, 'valid': xValid, 'test': xTest}
 
-        weights = []
-        net_inputs = []
-        net_outputs = []
-        deltas = []
+        # Mini-batching
+        batches = []
+        if shuffle:
+            indices = np.random.permutation(xTrain.shape[0])
+        else:
+            indices = np.arange(xTrain.shape[0])
 
-        np.random.seed(2018)
+        if batch_size==None:
+            batch_size = xTrain.shape[0]
+
+        for batch_num in range(xTrain.shape[0] // batch_size):
+            indxs = indices[batch_num*batch_size:(batch_num+1)*batch_size]
+            batches.append((xTrain[indxs], yTrain[indxs]))
 
         # Initialize weights list indexing into each layer (looks good)
         for layer in range(self.num_layers):
@@ -68,53 +81,47 @@ class MLP(object):
             else: # last layer
                 weights.append(np.random.normal(loc=0, scale=1, size=(self.hidden_units, self.output_units)))
 
-
-        # Iterate over epochs!
+        # Iterate over epochs
         for epoch in range(max_epochs):
-            learning_rate = learning_rate_init / (1 + epoch / annealing)
+            for train, labels in batches:
+                learning_rate = learning_rate_init / (1 + epoch / annealing)
 
-            # Forward propogation to get model weights
-            for layer in range(self.num_layers):
-                if layer == 0:
-                    net_inputs.append(np.dot(xTrain, weights[layer]))
-                    net_outputs.append(self.hidden_activation(net_inputs[layer]))
-                elif layer < self.num_layers - 1:
-                    net_inputs.append(np.dot(net_outputs[layer-1], weights[layer]))
-                    net_outputs.append(self.hidden_activation(net_inputs[-1]))
-                else:
-                    net_inputs.append(np.dot(net_outputs[layer-1], weights[layer]))
-                    net_outputs.append(self.output_activation(net_inputs[-1]))
+                # Forward propogation to get model weights
+                for layer in range(self.num_layers):
+                    if layer == 0:
+                        net_inputs.append(np.dot(train, weights[layer]))
+                        net_outputs.append(self.hidden_activation(net_inputs[layer]))
+                    elif layer < self.num_layers - 1:
+                        net_inputs.append(np.dot(net_outputs[layer-1], weights[layer]))
+                        net_outputs.append(self.hidden_activation(net_inputs[-1]))
+                    else:
+                        net_inputs.append(np.dot(net_outputs[layer-1], weights[layer]))
+                        net_outputs.append(self.output_activation(net_inputs[-1]))
 
-            # Backprop of partial gradients via deltas
-            for layer in range(self.num_layers-1, -1, -1):
-                # print(layer)
+                # Backprop of partial gradients via deltas
+                for layer in range(self.num_layers-1, -1, -1):
+                    if layer == self.num_layers-1:
+                        deltas.append(labels - net_outputs[-1])
+                    else:
+                        delta = net_outputs[layer]*(1 - net_outputs[layer]) * np.dot(deltas[-1], weights[layer+1].T)
+                        deltas.append(delta)
 
+                deltas = list(reversed(deltas))
 
-                if layer == self.num_layers-1:
-                    deltas.append(yTrain - net_outputs[-1])
-                else:
-                    delta = net_outputs[layer]*(1 - net_outputs[layer]) * np.dot(deltas[-1], weights[layer+1].T)
-                    deltas.append(delta)
+                # Update weights via gradient descent
+                for layer in range(self.num_layers):
+                    if layer == 0:
+                        grad = np.dot(train.T, deltas[layer])
+                        weights[layer] += learning_rate * np.dot(train.T, deltas[layer])
+                    else:
+                        grad = np.dot(net_outputs[layer-1].T, deltas[layer])
+                        weights[layer] += learning_rate * np.dot(net_outputs[layer-1].T, deltas[layer])
 
-            deltas = list(reversed(deltas))
-
-
-            # Update weights via gradient descent
-            for layer in range(self.num_layers):
-
-                if layer == 0:
-                    grad = np.dot(xTrain.T, deltas[layer])
-                    weights[layer] += learning_rate * np.dot(xTrain.T, deltas[layer])
-
-                else:
-                    grad = np.dot(net_outputs[layer-1].T, deltas[layer])
-                    weights[layer] += learning_rate * np.dot(net_outputs[layer-1].T, deltas[layer])
-
-            # Regularization
-            if reg == 'L2':
-                weights -= lam * 2 * weights
-            elif reg == 'L1':
-                weights -= lam * np.sign(weights)
+                # Regularization
+                if reg == 'L2':
+                    weights -= lam * 2 * weights
+                elif reg == 'L1':
+                    weights -= lam * np.sign(weights)
 
             weights_record.append(weights)
 
