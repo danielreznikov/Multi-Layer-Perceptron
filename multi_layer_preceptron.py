@@ -17,8 +17,8 @@ class MLP(object):
         self.dims = 785
         self.num_layers = hidden_layers + 1
 
-        self.sigmoid_weights = 0
-        self.softmax_weights = 0
+        self.sigmoid_weights = np.random.normal(loc=0, scale=1/np.sqrt(self.input_units), size=(self.input_units, self.hidden_units))
+        self.softmax_weights = np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
 
         self.accuracy_over_epoch = []
         self.loss_over_epoch = []
@@ -171,7 +171,7 @@ class MLP(object):
         # return weights, losses, weights_record, accuracies
         return weights, accuracies
 
-    def train_non_modular(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False):
+    def train_non_modular(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
 
         # Mini-batching
         batches = []
@@ -190,10 +190,13 @@ class MLP(object):
             batches.append((x[indxs], t[indxs]))
 
         # Initialize Weights as Random
-
-        W_hidden1 = np.random.normal(loc=0, scale=1/np.sqrt(self.input_units), size=(self.input_units, self.hidden_units))
+        # W_hidden1 = np.random.normal(loc=0, scale=1/np.sqrt(self.input_units), size=(self.input_units, self.hidden_units))
         # W_hidden2 = np.random.normal(loc=0, scale=1/np.sqrt(hidden_units1), size=(hidden_units1, hidden_units2))
-        W_output = np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
+        # W_output = np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
+
+        # Initialize Weights as the Default Random Weight Specified in the Constructor
+        W_hidden1 = self.sigmoid_weights
+        W_output = self.softmax_weights
 
         # Start a Timer for Training
         strt = time()
@@ -225,6 +228,35 @@ class MLP(object):
                 # delta_hidden2 = utilities.sigmoid_activation(net_input_h2) * (1 - utilities.sigmoid_activation(net_input_h2)) * np.dot(delta_output, W_output.T)
                 delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output.T)
 
+                if gradient_checking == True:
+
+                    # Tune which weight and which layer for gradient checking here!
+                    weight_indices = (3, 4)
+                    layer_tag = 'output'
+
+                    if layer_tag == 'output':
+
+                        numerical_grad = self.get_numerical_gradient(x_batch, t_batch, layer_tag, weight_indices)
+                        backprop_grad = - np.dot(hidden_layer_out1.T, delta_output)[weight_indices]
+
+                        print('Numerical Gradient:', numerical_grad)
+                        print('Backprop Gradient:', backprop_grad)
+                        print('Difference between Gradient:', numerical_grad - backprop_grad)
+
+                    elif layer_tag == 'hidden':
+
+                        numerical_grad = self.get_numerical_gradient(x_batch, t_batch, layer_tag, weight_indices)
+                        backprop_grad = - np.dot(x_batch.T, delta_hidden1)[weight_indices]
+
+                        print('Numerical Gradient:', numerical_grad)
+                        print('Backprop Gradient:', backprop_grad)
+                        print('Difference between Gradient:', numerical_grad - backprop_grad)
+
+                    else:
+                        print('Invalid Tag')
+                        sys.exit()
+
+
                 # Gradient Descent
                 W_output = W_output + alpha * np.dot(hidden_layer_out1.T, delta_output)
                 # W_hidden2 = W_hidden2 + alpha * np.dot(hidden_layer_out1.T, delta_hidden2)
@@ -251,7 +283,7 @@ class MLP(object):
                 print("\tLoss:", loss)
 
 
-        print('\nTraining Done! Took', time() - strt, " secs.")
+        print('\n\nTraining Done! Took', time() - strt, " secs.")
         print('Final Training Accuracy: ', self.accuracy_over_epoch[-1])
 
         # Store the Model
@@ -261,26 +293,82 @@ class MLP(object):
 
         return None
 
+    def get_numerical_gradient(self, x, t, weights, weight_indices):
+        """ Computes the numerical gradient for a given input with respect to a single weight specified by the tuple in
+            weight_indices """
 
-    def evaluate(self, inputs):
+        epsilon = 0.00001
+
+        if weights == 'hidden':
+
+            sigmoid_weights_plus = np.copy(self.sigmoid_weights)
+            sigmoid_weights_plus[weight_indices] += epsilon
+
+            sigmoid_weights_minus = np.copy(self.sigmoid_weights)
+            sigmoid_weights_minus[weight_indices] -= epsilon
+
+            pred_plus = self.evaluate(x, sigmoid_weights=sigmoid_weights_plus)
+            pred_minus = self.evaluate(x, sigmoid_weights=sigmoid_weights_minus)
+
+            loss_plus = utilities.cross_entropy_loss(t, pred_plus)
+            loss_minus = utilities.cross_entropy_loss(t, pred_minus)
+
+            gradient = (loss_plus - loss_minus)/ (2 * epsilon)
+
+            return gradient
+
+        elif weights == 'output':
+            softmax_weights_plus = np.copy(self.softmax_weights)
+            softmax_weights_plus[weight_indices] += epsilon
+
+            softmax_weights_minus = np.copy(self.softmax_weights)
+            softmax_weights_minus[weight_indices] -= epsilon
+
+            pred_plus  = self.evaluate(x, sigmoid_weights=self.sigmoid_weights, softmax_weights=softmax_weights_plus)
+            pred_minus = self.evaluate(x, sigmoid_weights=self.sigmoid_weights, softmax_weights=softmax_weights_minus)
+
+            loss_plus = utilities.cross_entropy_loss(t, pred_plus)
+            loss_minus = utilities.cross_entropy_loss(t, pred_minus)
+
+            gradient = (loss_plus - loss_minus) / (2 * epsilon)
+
+            return gradient
+
+        else:
+            print('Invalid Weights.  Input hidden or output.')
+
+    def evaluate(self, inputs, sigmoid_weights=None, softmax_weights=None):
         """ Perform Forward Prop with Curren Saved Weights
             Outputs Model Predictions for Data """
 
-        # Layer 1
-        net_input_h1 = np.dot(inputs, self.sigmoid_weights)
-        hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
+        if type(sigmoid_weights) == type(np.array([0])):
+            # Validates Inputs
+            assert sigmoid_weights.shape[0] == inputs.shape[1], 'Invalid Dimensions with given Weights'
 
-        # Layer 2
-        # net_input_h2 = np.dot(hidden_layer_out1, W_hidden2)
-        # hidden_layer_out2 = utilities.sigmoid_activation(net_input_h2)
+            # Layer 1
+            net_input_h1 = np.dot(inputs, sigmoid_weights)
+            hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
 
-        net_input_o = np.dot(hidden_layer_out1, self.softmax_weights)
-        y = utilities.softmax_activation(net_input_o)
+        else:
+            # Layer 1
+            net_input_h1 = np.dot(inputs, self.sigmoid_weights)
+            hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
+
+        if type(softmax_weights) == type(np.array([0])):
+
+            # Validates Inputs
+            assert softmax_weights.shape[0] == hidden_layer_out1.shape[1], 'Invalid Dimensions with given Weights'
+
+            # Output Layer
+            net_input_o = np.dot(hidden_layer_out1, softmax_weights)
+            y = utilities.softmax_activation(net_input_o)
+
+        else:
+            # Output Layer
+            net_input_o = np.dot(hidden_layer_out1, self.softmax_weights)
+            y = utilities.softmax_activation(net_input_o)
 
         return y
-
-
-
 
     def disp_train_accuracy(self):
         num_epochs = len(self.accuracy_over_epoch)
@@ -292,7 +380,6 @@ class MLP(object):
         plt.show()
 
         return None
-
 
     def disp_train_loss(self):
         num_epochs = len(self.loss_over_epoch)

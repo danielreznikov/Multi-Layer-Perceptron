@@ -33,7 +33,7 @@ def main():
     num_epochs = 100
 
 
-    mlp.train_non_modular(xTrain, yTrain, max_epochs=num_epochs, learning_rate_init=0.0001, annealing=num_epochs*.90, batch_size=200, shuffle=True)
+    mlp.train_non_modular(xTrain, yTrain, max_epochs=num_epochs, learning_rate_init=0.005, annealing=num_epochs*.90, batch_size=200, shuffle=True, gradient_checking=True)
 
     # weights, accuracies = mlp.train(data, max_epochs=num_epochs, learning_rate_init=0.00005, lam=0, reg=None, annealing=10, batch_size=50, shuffle=False)
 

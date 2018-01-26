@@ -66,7 +66,7 @@ def cross_entropy_loss(actuals, predicted, softmax=True):
 
     if softmax:
         loss = np.sum(actuals * np.log(predicted), axis=(1, 0))
-        return -loss / actuals.shape[0]
+        return -loss # / actuals.shape[0]
 
     else:
         loss = np.multiply(actuals, np.log(predicted)) + np.multiply((np.ones((dims, 1)) - actuals), np.log(np.ones((dims, 1)) - predicted))
