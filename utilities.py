@@ -11,17 +11,17 @@ def read_data(train_size=None, test_size=None):
     test_images, test_labels = mndata.load_testing()
 
     # Use the first 20,000 training images and the last 2,000 test images
-    xTrain = np.array(train_images)[:20000][:train_size]
+    xTrain = np.array(train_images)[:train_size]
     xTrain = np.divide(xTrain, 127.5)
     xTrain = np.subtract(xTrain, 1)
     xTrain = np.insert(xTrain, 0, 1, axis=1)
-    yTrain = np.array(train_labels)[:20000][:train_size]
+    yTrain = np.array(train_labels)[:train_size]
 
-    xTest = np.array(test_images)[-2000:][:test_size]
+    xTest = np.array(test_images)[:test_size]
     xTest = np.divide(xTest, 127.5)
     xTest = np.subtract(xTest, 1)
     xTest = np.insert(xTest, 0, 1, axis=1)
-    yTest = np.array(test_labels)[-2000:][:test_size]
+    yTest = np.array(test_labels)[:test_size]
 
     yTrain1Hot = np.zeros((yTrain.shape[0], 10))
     yTest1Hot = np.zeros((yTest.shape[0], 10))
@@ -49,7 +49,7 @@ def split_data(data):
 
     # Randomly split data into train and validation
     np.random.seed(2018)
-    indices = np.random.randint(0, xTrain.shape[0], xTrain.shape[0] // 10)
+    indices = np.random.randint(0, xTrain.shape[0], xTrain.shape[0] // 5)
     xValid = xTrain[indices]
     yValid = yTrain[indices]
     np.delete(xTrain, indices, axis=0)
@@ -81,29 +81,12 @@ def cross_entropy_loss(actuals, predicted, softmax=True):
 
     if softmax:
         loss = np.sum(actuals * np.log(predicted), axis=(1, 0))
-        return -loss # / actuals.shape[0]
+        return -loss / actuals.shape[0]
 
     else:
         loss = np.multiply(actuals, np.log(predicted)) + np.multiply((np.ones((dims, 1)) - actuals), np.log(np.ones((dims, 1)) - predicted))
         loss = -np.sum(loss) / actuals.shape[0]
         return loss
-
-def gradient_approximation(exemplar, actual, weight, epsilon, softmax):
-    '''
-    Function computes numerical approximation
-    Returns
-    '''
-    if not softmax:
-        predicted1 = sigmoid_activation(exemplar * (weight + epsilon))
-        predicted2 = sigmoid_activation(exemplar * (weight - epsilon))
-
-        return (cross_entropy_loss(actual, predicted1, False) - cross_entropy_loss(actual, predicted2, False)) / (2 * epsilon)
-
-    else:
-        predicted1 = softmax_activation(exemplar * (weight + epsilon))
-        predicted2 = softmax_activation(exemplar * (weight - epsilon))
-
-        return (cross_entropy_loss(actual, predicted1, True) - cross_entropy_loss(actual, predicted2, True)) / (2 * epsilon)
 
 def accuracy(actuals, predictions, softmax=True):
     '''Computes the percent accuracy of a model.'''
@@ -121,4 +104,6 @@ def accuracy(actuals, predictions, softmax=True):
 
     return accuracy
 
-
+def early_stopping(arr):
+    '''True if last 3 epochs have higher loss than 4 epochs ago.'''
+    return arr[-3] > arr[-4] and arr[-2] > arr[-3] and arr[-1] > arr[-4]

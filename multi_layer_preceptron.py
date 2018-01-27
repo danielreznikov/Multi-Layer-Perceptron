@@ -17,6 +17,9 @@ class MLP(object):
         self.dims = 785
         self.num_layers = hidden_layers + 1
 
+        self.losses = {'train_loss': [], 'valid_loss': [], 'test_loss': []}
+        self.accuracies = {'train_acc': [],'valid_acc': [],'test_acc': []}
+
         if hidden_layers == 1:
             self.weights = [
                 np.random.normal(loc=0, scale=1/np.sqrt(self.input_units),  size=(self.input_units, self.hidden_units-1)),
@@ -29,8 +32,7 @@ class MLP(object):
                 np.random.normal(loc=0, scale=1 / np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
             ]
 
-        self.accuracy_over_epoch = []
-        self.loss_over_epoch = []
+        self.best_model = [sys.maxsize, self.weights]
 
         if hidden_activation == 'sigmoid':
             self.hidden_activation = utilities.sigmoid_activation
@@ -177,12 +179,12 @@ class MLP(object):
         # return weights, losses, weights_record, accuracies
         return weights, accuracies
 
-    def train_hidden1(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
+    def train_hidden1(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
         assert (self.hidden_layers == 1)
 
         # Mini-batching
         batches = []
-        num_samples = x.shape[0]
+        num_samples = self.xTrain.shape[0]
 
         if shuffle:
             indices = np.random.permutation(num_samples)
@@ -194,7 +196,7 @@ class MLP(object):
 
         for batch_num in range(num_samples // batch_size):
             indxs = indices[batch_num * batch_size:(batch_num + 1) * batch_size]
-            batches.append((x[indxs], t[indxs]))
+            batches.append((self.xTrain[indxs], self.yTrain[indxs]))
 
         W_hidden1 = self.weights[0]
         W_output = self.weights[1]
@@ -225,7 +227,7 @@ class MLP(object):
 
                 if gradient_checking == True:
                     # Tune which weight and which layer for gradient checking here!
-                    weight_indices = (3, 4)
+                    weight_indices = (0, 3)
                     layer_tag = 'output'
 
                     if layer_tag == 'output':
@@ -253,35 +255,56 @@ class MLP(object):
                 W_hidden1 = W_hidden1 + alpha * np.dot(x_batch.T, delta_hidden1)
 
                 # Store the Model
-                self.weights[0] = W_hidden1
-                self.weights[1] = W_output
+                # self.weights[0] = W_hidden1
+                # self.weights[1] = W_output
+                self.weights[0] = (self.weights[0] - W_hidden1)/128
+                self.weights[1] = (self.weights[1] - W_output)/128
 
-            predictions = self.get_model_predictions(x)
+            # Get model predictions
+            predictions_train = self.get_model_predictions(self.xTrain)
+            predictions_valid = self.get_model_predictions(self.xValid)
+            predictions_test = self.get_model_predictions(self.xTest)
 
-            # Store Accuracies over Epochs
-            accuracy = utilities.accuracy(t, predictions)
-            self.accuracy_over_epoch.append(accuracy)
+            # Compute accuracies over epochs
+            self.accuracies['train_acc'].append(utilities.accuracy(self.yTrain, predictions_train))
+            self.accuracies['valid_acc'].append(utilities.accuracy(self.yValid, predictions_valid))
+            self.accuracies['test_acc'].append(utilities.accuracy(self.yTest, predictions_test))
 
-            # Store Cross-Entropy Loss over Epochs
-            loss = utilities.cross_entropy_loss(t, predictions)
-            self.loss_over_epoch.append(loss)
+            # Cross-Entropy Loss over epochs
+            self.losses['train_loss'].append(utilities.cross_entropy_loss(self.yTrain, predictions_train))
+            self.losses['valid_loss'].append(utilities.cross_entropy_loss(self.yValid, predictions_valid))
+            self.losses['test_loss'].append(utilities.cross_entropy_loss(self.yTest, predictions_test))
 
+            # Update best model so far
+            if self.losses['valid_loss'][-1] < self.best_model[0]:
+                self.best_model[0] = self.losses['valid_loss'][-1]
+                self.best_model[1] = self.weights
+
+            # Early Stopping
+            if epoch > 4 and utilities.early_stopping(self.losses['valid_loss']):
+                print("Early Stopping at epoch =", epoch)
+                break
+            elif epoch > 2 and np.abs(self.losses['valid_loss'][-1] - self.losses['valid_loss'][-2]) < 0.00001:
+                print("Early Stopping, error below epsilon.", self.losses['valid_loss'][-1])
+                break
+
+            # Debug statements
             if epoch % 10 == 0:
                 print("\nEpoch:", epoch)
-                print("\tAccuracy:", accuracy)
-                print("\tLoss:", loss)
+                print("\tAccuracy:", self.accuracies['train_acc'][-1])
+                print("\tLoss:", self.losses['train_loss'][-1])
 
-        print('\n\nTraining Done! Took', time() - strt, " secs.")
-        print('Final Training Accuracy: ', self.accuracy_over_epoch[-1])
+        print('\n\nTraining Done! Took', round(time() - strt, 3), " secs.")
+        print('Final Training Accuracy: ', self.accuracies['train_acc'][-1], " in ", epoch, " epochs.")
 
         return 1
 
-    def train_hidden2(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False):
+    def train_hidden2(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False):
         assert (self.hidden_layers == 2)
 
         # Mini-batching
         batches = []
-        num_samples = x.shape[0]
+        num_samples = self.xTrain.shape[0]
 
         if shuffle:
             indices = np.random.permutation(num_samples)
@@ -293,7 +316,7 @@ class MLP(object):
 
         for batch_num in range(num_samples // batch_size):
             indxs = indices[batch_num * batch_size:(batch_num + 1) * batch_size]
-            batches.append((x[indxs], t[indxs]))
+            batches.append((self.xTrain[indxs], self.yTrain[indxs]))
 
         W_hidden1 = self.weights[0]
         W_hidden2 = self.weights[1]
@@ -337,33 +360,39 @@ class MLP(object):
                 self.weights[1] = W_hidden2
                 self.weights[2] = W_output
 
-            predictions = self.get_model_predictions(x)
+            # Get model predictions
+            predictions_train = self.get_model_predictions(self.xTrain)
+            predictions_valid = self.get_model_predictions(self.xValid)
+            predictions_test = self.get_model_predictions(self.xTest)
 
-            # Store Accuracies over Epochs
-            accuracy = utilities.accuracy(t, predictions)
-            self.accuracy_over_epoch.append(accuracy)
+            # Compute accuracies over epochs
+            self.accuracies['train_acc'].append(utilities.accuracy(self.yTrain, predictions_train))
+            self.accuracies['valid_acc'].append(utilities.accuracy(self.yValid, predictions_valid))
+            self.accuracies['test_acc'].append(utilities.accuracy(self.yTest, predictions_test))
 
-            # Store Cross-Entropy Loss over Epochs
-            loss = utilities.cross_entropy_loss(t, predictions)
-            self.loss_over_epoch.append(loss)
+            # Cross-Entropy Loss over epochs
+            self.losses['train_loss'].append(utilities.cross_entropy_loss(self.yTrain, predictions_train))
+            self.losses['valid_loss'].append(utilities.cross_entropy_loss(self.yValid, predictions_valid))
+            self.losses['test_loss'].append(utilities.cross_entropy_loss(self.yTest, predictions_test))
 
+            # Debug statements
             if epoch % 10 == 0:
                 print("\nEpoch:", epoch)
-                print("\tAccuracy:", accuracy)
-                print("\tLoss:", loss)
+                print("\tAccuracy:", self.accuracies['train_acc'][-1])
+                print("\tLoss:", self.losses['train_loss'][-1])
 
-        print('\n\nTraining Done! Took', time() - strt, " secs.")
-        print('Final Training Accuracy: ', self.accuracy_over_epoch[-1])
+        print('\n\nTraining Done! Took', round(time() - strt, 3), " secs.")
+        print('Final Training Accuracy: ', self.accuracies['train_acc'][-1], " in ", epoch, " epochs.")
 
         return 1
 
-    def train(self, x, t, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
+    def train(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
         if self.hidden_layers == 1:
-            self.train_hidden1(x, t, max_epochs=max_epochs, learning_rate_init=learning_rate_init, annealing=annealing,
+            self.train_hidden1(max_epochs=max_epochs, learning_rate_init=learning_rate_init, annealing=annealing,
                                batch_size=batch_size, shuffle=shuffle, gradient_checking=gradient_checking)
 
         elif self.hidden_layers == 2:
-            self.train_hidden2(x, t, max_epochs=max_epochs, learning_rate_init=learning_rate_init, annealing=annealing,
+            self.train_hidden2(max_epochs=max_epochs, learning_rate_init=learning_rate_init, annealing=annealing,
                                batch_size=batch_size, shuffle=shuffle)
 
         return
@@ -373,7 +402,7 @@ class MLP(object):
             weight_indices """
         assert (self.hidden_layers == 1)
 
-        def evaluate(self, inputs, sigmoid_weights=None, softmax_weights=None):
+        def evaluate(inputs, sigmoid_weights=None, softmax_weights=None):
             """ Perform Forward Prop with Curren Saved Weights
                 Outputs Model Predictions for Data """
             assert (self.hidden_layers == 1)
@@ -409,7 +438,7 @@ class MLP(object):
 
             return y
 
-        epsilon = 0.00001
+        epsilon = 0.01
 
         if layer_tag == 'hidden':
 
@@ -454,8 +483,8 @@ class MLP(object):
             Outputs Model Predictions for Data """
 
         if self.hidden_layers == 1:
-            weights_hidden = self.weights[0]
-            weights_output = self.weights[1]
+            weights_hidden = self.best_model[1][0]
+            weights_output = self.best_model[1][1]
 
             net_input_hidden = np.dot(x, weights_hidden)
             net_output_hidden = utilities.sigmoid_activation((net_input_hidden))
@@ -464,9 +493,9 @@ class MLP(object):
             predictions = utilities.softmax_activation(np.dot(net_output_hidden, weights_output))
 
         elif self.hidden_layers == 2:
-            weights_hidden1 = self.weights[0]
-            weights_hidden2 = self.weights[1]
-            weights_output = self.weights[2]
+            weights_hidden1 = self.best_model[1][0]
+            weights_hidden2 = self.best_model[1][1]
+            weights_output = self.best_model[1][2]
 
             net_input_hidden1 = np.dot(x, weights_hidden1)
             net_output_hidden1 = utilities.sigmoid_activation((net_input_hidden1))
@@ -561,32 +590,45 @@ class MLP(object):
 
         return None
 
-    def train_diagnostics(self):
+    def train_diagnostics(self, prob):
 
         plt.subplot(2, 1, 1)
-        num_epochs = len(self.accuracy_over_epoch)
+        num_epochs = len(self.accuracies['train_acc'])
 
-        plt.plot(np.arange(num_epochs), self.accuracy_over_epoch)
+        plt.plot(np.arange(num_epochs), self.accuracies['train_acc'])
+        plt.plot(np.arange(num_epochs), self.accuracies['valid_acc'])
+        plt.plot(np.arange(num_epochs), self.accuracies['test_acc'])
         plt.xlabel('Epochs')
-        plt.ylabel('Training Accuracy')
+        plt.ylabel('Percent Accuracy')
         plt.title('Accuracy Vs. Epochs')
+        plt.legend(['Training', 'Validation', 'Test'], loc='lower right')
 
         plt.subplot(2, 1, 2)
-        plt.plot(np.arange(num_epochs), self.loss_over_epoch)
+        plt.plot(np.arange(num_epochs), self.losses['train_loss'])
+        plt.plot(np.arange(num_epochs), self.losses['valid_loss'])
+        plt.plot(np.arange(num_epochs), self.losses['test_loss'])
         plt.xlabel('Epochs')
-        plt.ylabel('Training Loss')
+        plt.ylabel('Normalized Loss')
         plt.title('Cross-Entropy Loss Vs. Epochs')
+        plt.legend(['Training', 'Validation', 'Test'], loc='upper right')
 
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.5)
+
+        plt.savefig('report_images/' + prob + '.png')
         plt.show()
 
-        return None
+    def set_mlp_data(self, data):
 
+        xTrain, yTrain, xValid, yValid, xTest, yTest = utilities.split_data(data)
 
+        self.xTrain = xTrain
+        self.yTrain = yTrain
 
+        self.xValid = xValid
+        self.yValid = yValid
 
-
-
-
+        self.xTest = xTest
+        self.yTest = yTest
 
 
 
