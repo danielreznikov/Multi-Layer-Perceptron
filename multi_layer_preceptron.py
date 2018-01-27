@@ -36,6 +36,8 @@ class MLP(object):
 
         if hidden_activation == 'sigmoid':
             self.hidden_activation = utilities.sigmoid_activation
+        elif hidden_activation == 'tanh':
+            self.hidden_activation = utilities.tanh_activation
         else:
             raise Exception("ERROR: unsuported activation function," + hidden_activation)
 
@@ -214,7 +216,7 @@ class MLP(object):
             for x_batch, t_batch in batches:
                 # Forward Prop
                 net_input_h1 = np.dot(x_batch, W_hidden1)
-                hidden_layer_out1 = utilities.sigmoid_activation(net_input_h1)
+                hidden_layer_out1 = self.hidden_activation(net_input_h1)
                 hidden_layer_out1 = np.insert(hidden_layer_out1, 0, 1, axis=1)
 
                 # Output Layer
@@ -223,7 +225,12 @@ class MLP(object):
 
                 # Back Prop (deltas)
                 delta_output = (t_batch - y)
-                delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output[1:,:].T)
+                if self.hidden_activation == utilities.sigmoid_activation:
+                    delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output[1:,:].T)
+                elif self.hidden_activation == utilities.tanh_activation:
+                    delta_hidden1 = (2/3) * (1 - np.power(utilities.tanh_activation(net_input_h1), 2)) * np.dot(delta_output, W_output[1:,:].T)
+                else:
+                    raise Exception("ERROR: Not supported hidden activation function!")
 
                 if gradient_checking == True:
                     # Tune which weight and which layer for gradient checking here!
@@ -255,10 +262,10 @@ class MLP(object):
                 W_hidden1 = W_hidden1 + alpha * np.dot(x_batch.T, delta_hidden1)
 
                 # Store the Model
-                # self.weights[0] = W_hidden1
-                # self.weights[1] = W_output
-                self.weights[0] = (self.weights[0] - W_hidden1)/128
-                self.weights[1] = (self.weights[1] - W_output)/128
+                self.weights[0] = W_hidden1
+                self.weights[1] = W_output
+                # self.weights[0] = (self.weights[0] - W_hidden1)/128
+                # self.weights[1] = (self.weights[1] - W_output)/128
 
             # Get model predictions
             predictions_train = self.get_model_predictions(self.xTrain)

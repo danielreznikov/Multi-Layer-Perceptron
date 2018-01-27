@@ -12,15 +12,15 @@ def main():
     data = utilities.read_data(train_size=None, test_size=None)
 
     # Initialize MLP Object
-    mlp = MLP(input_units=785, hidden_layers=1, hidden_units=65, output_units=10)
+    mlp = MLP(input_units=785, hidden_layers=1, hidden_units=65, output_units=10, hidden_activation='tanh')
 
     mlp.set_mlp_data(data)
 
     # Train the Model on the Training Set
-    num_epochs = 50
-    mlp.train(max_epochs=num_epochs, learning_rate_init=0.007, annealing=num_epochs * .90, batch_size=128, shuffle=False)
+    num_epochs = 10
+    mlp.train(max_epochs=num_epochs, learning_rate_init=0.007, annealing=num_epochs * .90, batch_size=128, shuffle=True)
 
     # Display Accuracy and Loss over Epochs to Show Convergence of Model
-    mlp.train_diagnostics('4a') # Problem (3E)
+    mlp.train_diagnostics('delete') # Problem (3E)
 
 main()

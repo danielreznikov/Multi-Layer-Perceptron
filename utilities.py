@@ -69,6 +69,10 @@ def softmax_activation(net_input):
 
     return retval
 
+def tanh_activation(net_input):
+    '''Yan Lecum's magic tanh formula'''
+    return 1.7159 * np.tanh((2/3)*net_input)
+
 def cross_entropy_loss(actuals, predicted, softmax=True):
     '''
     Actuals   - nX10, 1-Hot encoded
