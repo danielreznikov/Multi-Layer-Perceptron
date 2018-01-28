@@ -16,14 +16,23 @@ class MLP(object):
         self.output_units = output_units
         self.dims = 785
         self.num_layers = hidden_layers + 1
+        self.train_stats = None
 
         self.losses = {'train_loss': [], 'valid_loss': [], 'test_loss': []}
         self.accuracies = {'train_acc': [],'valid_acc': [],'test_acc': []}
 
         if hidden_layers == 1:
             self.weights = [
-                np.random.normal(loc=0, scale=1/np.sqrt(self.input_units),  size=(self.input_units, self.hidden_units-1)),
-                np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
+                # Experiment 3E, 4A
+                # np.random.uniform(low=-1.0, high=1.0, size=(self.input_units, self.hidden_units-1)),
+                # np.random.uniform(low=-1.0, high=1.0, size=(self.hidden_units, self.output_units))
+
+                # Experiment 4B
+                np.random.uniform(low=-5.0, high=5.0, size=(self.input_units, self.hidden_units - 1)),
+                np.random.uniform(low=-5.0, high=5.0, size=(self.hidden_units, self.output_units))
+
+                # np.random.normal(loc=0, scale=1/np.sqrt(self.input_units),  size=(self.input_units, self.hidden_units-1)),
+                # np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
             ]
         elif hidden_layers == 2:
             self.weights = [
@@ -184,33 +193,49 @@ class MLP(object):
     def train_hidden1(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
         assert (self.hidden_layers == 1)
 
-        # Mini-batching
-        batches = []
-        num_samples = self.xTrain.shape[0]
-
-        if shuffle:
-            indices = np.random.permutation(num_samples)
-        else:
-            indices = np.arange(num_samples)
-
-        if batch_size == None:
-            batch_size = num_samples
-
-        for batch_num in range(num_samples // batch_size):
-            indxs = indices[batch_num * batch_size:(batch_num + 1) * batch_size]
-            batches.append((self.xTrain[indxs], self.yTrain[indxs]))
-
-        W_hidden1 = self.weights[0]
-        W_output = self.weights[1]
-
         # Start a Timer for Training
         strt = time()
         print("Training...")
+
+        # # Mini-batching
+        # batches = []
+        # num_samples = self.xTrain.shape[0]
+        #
+        # if shuffle:
+        #     indices = np.random.permutation(num_samples)
+        # else:
+        #     indices = np.arange(num_samples)
+        #
+        # if batch_size == None:
+        #     batch_size = num_samples
+        #
+        # for batch_num in range(num_samples // batch_size):
+        #     indxs = indices[batch_num * batch_size:(batch_num + 1) * batch_size]
+        #     batches.append((self.xTrain[indxs], self.yTrain[indxs]))
+
+        W_hidden1 = self.weights[0]
+        W_output = self.weights[1]
 
         # Iterate
         for epoch in range(max_epochs):
             # Decay Learning Rate
             alpha = learning_rate_init / (1 + epoch / annealing)
+
+            # Mini-batching
+            batches = []
+            num_samples = self.xTrain.shape[0]
+
+            if shuffle:
+                indices = np.random.permutation(num_samples)
+            else:
+                indices = np.arange(num_samples)
+
+            if batch_size == None:
+                batch_size = num_samples
+
+            for batch_num in range(num_samples // batch_size):
+                indxs = indices[batch_num * batch_size:(batch_num + 1) * batch_size]
+                batches.append((self.xTrain[indxs], self.yTrain[indxs]))
 
             # Iterate Over Mini-Batches
             for x_batch, t_batch in batches:
@@ -223,12 +248,14 @@ class MLP(object):
                 net_input_o = np.dot(hidden_layer_out1, W_output)
                 y = utilities.softmax_activation(net_input_o)
 
-                # Back Prop (deltas)
+                # Backprop (deltas)
                 delta_output = (t_batch - y)
                 if self.hidden_activation == utilities.sigmoid_activation:
                     delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output[1:,:].T)
                 elif self.hidden_activation == utilities.tanh_activation:
-                    delta_hidden1 = (2/3) * (1 - np.power(utilities.tanh_activation(net_input_h1), 2)) * np.dot(delta_output, W_output[1:,:].T)
+                    # delta_hidden1 = (2/3) * (1.7159 - 1.0/1.7159*np.power(utilities.tanh_activation(net_input_h1), 2)) * np.dot(delta_output, W_output[1:,:].T)
+                    delta_hidden1 = ((-2/3) * (1.7159) * (1 - np.power(np.tanh((2/3) * net_input_h1), 2)) + 3.75)*  np.dot(delta_output, W_output[1:,:].T)
+
                 else:
                     raise Exception("ERROR: Not supported hidden activation function!")
 
@@ -264,8 +291,6 @@ class MLP(object):
                 # Store the Model
                 self.weights[0] = W_hidden1
                 self.weights[1] = W_output
-                # self.weights[0] = (self.weights[0] - W_hidden1)/128
-                # self.weights[1] = (self.weights[1] - W_output)/128
 
             # Get model predictions
             predictions_train = self.get_model_predictions(self.xTrain)
@@ -276,6 +301,10 @@ class MLP(object):
             self.accuracies['train_acc'].append(utilities.accuracy(self.yTrain, predictions_train))
             self.accuracies['valid_acc'].append(utilities.accuracy(self.yValid, predictions_valid))
             self.accuracies['test_acc'].append(utilities.accuracy(self.yTest, predictions_test))
+
+            # Code Profiling
+            if not self.train_stats and self.accuracies['valid_acc'][-1] >= 0.97:
+                self.train_stats = (time() - strt, epoch)
 
             # Cross-Entropy Loss over epochs
             self.losses['train_loss'].append(utilities.cross_entropy_loss(self.yTrain, predictions_train))

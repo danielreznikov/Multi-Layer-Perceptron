@@ -1,11 +1,4 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import math
-from pprint import pprint
-import utilities
 from multi_layer_preceptron import *
-from time import time
-import sys
 
 
 def main():
@@ -17,8 +10,14 @@ def main():
     mlp.set_mlp_data(data)
 
     # Train the Model on the Training Set
-    num_epochs = 10
-    mlp.train(max_epochs=num_epochs, learning_rate_init=0.007, annealing=num_epochs * .90, batch_size=128, shuffle=True)
+    num_epochs = 15
+    mlp.train(max_epochs=num_epochs, learning_rate_init=0.0001, annealing=num_epochs * 10.7, batch_size=128, shuffle=True)
+
+    msg = "++++++++++++++++++++++++++++++++++++++++"
+    try:
+        print(msg, "\nExperiment Stats: Time to train(", round(mlp.train_stats[0],4), ' secs) Epochs to train (', mlp.train_stats[1], ')\n', msg)
+    except TypeError:
+        print(msg, "\nTarget validation accuracy of 0.97 was never reached.\n", msg)
 
     # Display Accuracy and Loss over Epochs to Show Convergence of Model
     mlp.train_diagnostics('delete') # Problem (3E)
