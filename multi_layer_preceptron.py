@@ -23,16 +23,12 @@ class MLP(object):
 
         if hidden_layers == 1:
             self.weights = [
-                # Experiment 3E, 4A
+                # Experiment 3E, 4A, 4B
                 # np.random.uniform(low=-1.0, high=1.0, size=(self.input_units, self.hidden_units-1)),
                 # np.random.uniform(low=-1.0, high=1.0, size=(self.hidden_units, self.output_units))
 
-                # Experiment 4B
-                np.random.uniform(low=-5.0, high=5.0, size=(self.input_units, self.hidden_units - 1)),
-                np.random.uniform(low=-5.0, high=5.0, size=(self.hidden_units, self.output_units))
-
-                # np.random.normal(loc=0, scale=1/np.sqrt(self.input_units),  size=(self.input_units, self.hidden_units-1)),
-                # np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
+                np.random.normal(loc=0, scale=1/np.sqrt(self.input_units),  size=(self.input_units, self.hidden_units-1)),
+                np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
             ]
         elif hidden_layers == 2:
             self.weights = [
@@ -190,7 +186,7 @@ class MLP(object):
         # return weights, losses, weights_record, accuracies
         return weights, accuracies
 
-    def train_hidden1(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
+    def train_hidden1(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False, momentum=False):
         assert (self.hidden_layers == 1)
 
         # Start a Timer for Training
@@ -216,10 +212,16 @@ class MLP(object):
         W_hidden1 = self.weights[0]
         W_output = self.weights[1]
 
+        momentum1 = 0
+        momentum2 = 0
+
         # Iterate
         for epoch in range(max_epochs):
             # Decay Learning Rate
-            alpha = learning_rate_init / (1 + epoch / annealing)
+            if not momentum:
+                alpha = learning_rate_init / (1 + epoch / annealing)
+            else:
+                alpha = learning_rate_init / (1 + epoch / annealing)
 
             # Mini-batching
             batches = []
@@ -253,8 +255,8 @@ class MLP(object):
                 if self.hidden_activation == utilities.sigmoid_activation:
                     delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output[1:,:].T)
                 elif self.hidden_activation == utilities.tanh_activation:
-                    # delta_hidden1 = (2/3) * (1.7159 - 1.0/1.7159*np.power(utilities.tanh_activation(net_input_h1), 2)) * np.dot(delta_output, W_output[1:,:].T)
-                    delta_hidden1 = ((-2/3) * (1.7159) * (1 - np.power(np.tanh((2/3) * net_input_h1), 2)) + 3.75)*  np.dot(delta_output, W_output[1:,:].T)
+                    delta_hidden1 = (2/3) * (1.7159 - 1.0/1.7159*np.power(utilities.tanh_activation(net_input_h1), 2)) * np.dot(delta_output, W_output[1:,:].T)
+                    # delta_hidden1 = ((-2/3) * (1.7159) * (1 - np.power(np.tanh((2/3) * net_input_h1), 2)) + 0.0)*  np.dot(delta_output, W_output[1:,:].T)
 
                 else:
                     raise Exception("ERROR: Not supported hidden activation function!")
@@ -285,8 +287,20 @@ class MLP(object):
                     sys.exit()
 
                 # Gradient Descent
-                W_output = W_output + alpha * np.dot(hidden_layer_out1.T, delta_output)
-                W_hidden1 = W_hidden1 + alpha * np.dot(x_batch.T, delta_hidden1)
+                if momentum == True:
+
+                    current_grad1 = alpha * np.dot(hidden_layer_out1.T, delta_output)
+                    current_grad2 = alpha * np.dot(x_batch.T, delta_hidden1)
+
+                    W_output = W_output + current_grad1 + (0.9 * momentum1)
+                    W_hidden1 = W_hidden1 + current_grad2 + (0.9 * momentum2)
+
+                    momentum1 = current_grad1
+                    momentum2 = current_grad2
+
+                else:
+                    W_output = W_output + alpha * np.dot(hidden_layer_out1.T, delta_output)
+                    W_hidden1 = W_hidden1 + alpha * np.dot(x_batch.T, delta_hidden1)
 
                 # Store the Model
                 self.weights[0] = W_hidden1
@@ -318,17 +332,20 @@ class MLP(object):
 
             # Early Stopping
             if epoch > 4 and utilities.early_stopping(self.losses['valid_loss']):
-                print("Early Stopping at epoch =", epoch)
-                break
+                print("\tEarly Stopping at epoch =", epoch)
+                # break
             elif epoch > 2 and np.abs(self.losses['valid_loss'][-1] - self.losses['valid_loss'][-2]) < 0.00001:
-                print("Early Stopping, error below epsilon.", self.losses['valid_loss'][-1])
-                break
+                print("\tEarly Stopping, error below epsilon.", self.losses['valid_loss'][-1])
+                # break
 
             # Debug statements
             if epoch % 10 == 0:
                 print("\nEpoch:", epoch)
                 print("\tAccuracy:", self.accuracies['train_acc'][-1])
                 print("\tLoss:", self.losses['train_loss'][-1])
+
+        if not self.train_stats:
+            self.train_stats = (time() - strt, epoch)
 
         print('\n\nTraining Done! Took', round(time() - strt, 3), " secs.")
         print('Final Training Accuracy: ', self.accuracies['train_acc'][-1], " in ", epoch, " epochs.")
@@ -422,10 +439,10 @@ class MLP(object):
 
         return 1
 
-    def train(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False):
+    def train(self, max_epochs=100, learning_rate_init=0.0001, annealing=100, batch_size=None, shuffle=False, gradient_checking=False, momentum=False):
         if self.hidden_layers == 1:
             self.train_hidden1(max_epochs=max_epochs, learning_rate_init=learning_rate_init, annealing=annealing,
-                               batch_size=batch_size, shuffle=shuffle, gradient_checking=gradient_checking)
+                               batch_size=batch_size, shuffle=shuffle, gradient_checking=gradient_checking, momentum=momentum)
 
         elif self.hidden_layers == 2:
             self.train_hidden2(max_epochs=max_epochs, learning_rate_init=learning_rate_init, annealing=annealing,
@@ -523,10 +540,10 @@ class MLP(object):
             weights_output = self.best_model[1][1]
 
             net_input_hidden = np.dot(x, weights_hidden)
-            net_output_hidden = utilities.sigmoid_activation((net_input_hidden))
+            net_output_hidden = self.hidden_activation((net_input_hidden))
             net_output_hidden = np.insert(net_output_hidden, 0, 1, axis=1)
 
-            predictions = utilities.softmax_activation(np.dot(net_output_hidden, weights_output))
+            predictions = self.output_activation(np.dot(net_output_hidden, weights_output))
 
         elif self.hidden_layers == 2:
             weights_hidden1 = self.best_model[1][0]
@@ -534,14 +551,14 @@ class MLP(object):
             weights_output = self.best_model[1][2]
 
             net_input_hidden1 = np.dot(x, weights_hidden1)
-            net_output_hidden1 = utilities.sigmoid_activation((net_input_hidden1))
+            net_output_hidden1 = self.hidden_activation((net_input_hidden1))
             net_output_hidden1 = np.insert(net_output_hidden1, 0, 1, axis=1)
 
             net_input_hidden2 = np.dot(net_output_hidden1, weights_hidden2)
-            net_output_hidden2 = utilities.sigmoid_activation((net_input_hidden2))
+            net_output_hidden2 = self.hidden_activation((net_input_hidden2))
             net_output_hidden2 = np.insert(net_output_hidden2, 0, 1, axis=1)
 
-            predictions = utilities.softmax_activation(np.dot(net_output_hidden2, weights_output))
+            predictions = self.output_activation(np.dot(net_output_hidden2, weights_output))
 
         return predictions
 

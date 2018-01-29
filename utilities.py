@@ -71,7 +71,7 @@ def softmax_activation(net_input):
 
 def tanh_activation(net_input):
     '''Yan Lecum's magic tanh formula'''
-    return 1.7159 * np.tanh((2/3)*net_input)
+    return 1.7159 * np.tanh((2/3)*net_input) + 0.0 * net_input
 
 def cross_entropy_loss(actuals, predicted, softmax=True):
     '''
