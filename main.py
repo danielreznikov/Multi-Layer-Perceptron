@@ -2,16 +2,16 @@ from multi_layer_preceptron import *
 
 
 def main():
-    data = utilities.read_data(train_size=None, test_size=None)
+    data = utilities.read_data(train_size=5000, test_size=500)
 
     # Initialize MLP Object
-    mlp = MLP(input_units=785, hidden_layers=1, hidden_units=129, output_units=10, hidden_activation='tanh')
+    mlp = MLP(input_units=785, hidden_layers=2, hidden_units=65, output_units=10, hidden_activation='tanh')
 
     mlp.set_mlp_data(data)
 
     # Train the Model on the Training Set
     num_epochs = 50
-    mlp.train(max_epochs=num_epochs, learning_rate_init=0.00045, annealing=500.0, batch_size=128, shuffle=True, momentum=True)
+    mlp.train(max_epochs=num_epochs, learning_rate_init=0.001, annealing=200.0, batch_size=128, shuffle=True, momentum=True)
 
     msg = "++++++++++++++++++++++++++++++++++++++++"
     if mlp.accuracies['valid_acc'][-1] >= 0.97:
@@ -22,6 +22,6 @@ def main():
               mlp.train_stats[1], ') acc(', round(mlp.accuracies['valid_acc'][-1],4), ')\n', msg)
 
     # Display Accuracy and Loss over Epochs to Show Convergence of Model
-    mlp.train_diagnostics('5A_2') # Problem (3E)
+    mlp.train_diagnostics('5B') # Problem (3E)
 
 main()
