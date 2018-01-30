@@ -414,13 +414,13 @@ class MLP(object):
                     current_grad2 = alpha * np.dot(hidden_layer_out1.T, delta_hidden2)
                     current_grad3 = alpha * np.dot(x_batch.T, delta_hidden1)
 
-                    W_output = W_output + current_grad1 + (0.9 * momentum1)
-                    W_hidden2 = W_hidden2 + current_grad2 + (0.9 * momentum2)
-                    W_hidden1 = W_hidden1 + current_grad3 + (0.9 * momentum3)
+                    momentum1 = current_grad1 + (0.9 * momentum1)
+                    momentum2 = current_grad2 + (0.9 * momentum2)
+                    momentum3 = current_grad3 + (0.9 * momentum3)
 
-                    momentum1 = current_grad1
-                    momentum2 = current_grad2
-                    momentum3 = current_grad3
+                    W_output = W_output + momentum1
+                    W_hidden2 = W_hidden2 + momentum2
+                    W_hidden1 = W_hidden1 + momentum3
 
                 else:
                     W_output = W_output + alpha * np.dot(hidden_layer_out2.T, delta_output)
