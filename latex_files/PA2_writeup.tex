@@ -93,10 +93,14 @@ The dataset that we are trying to classify is the classic MNIST dataset (sourced
 \subsection*{Experiments with Network Topology}
 
 \begin{itemize}
-\item \textbf{\textit{Hidden Unit Exploration}}: we halve the number of hidden units to 32 and double the hidden units to 128.  We profile our results by again measuring the wall-clock time and epochs to achieve a validation accuracy of 97\%.
+\item \textbf{\textit{Hidden Unit Exploration}}: We halve the number of hidden units to 32 and double the hidden units to 128.  We profile our results by again measuring the wall-clock time and epochs to achieve a validation accuracy of 97\%.
 \item \textbf{\textit{Hidden Layer Exploration}}: We add another hidden layer with the same number of hidden nodes (64) as the first layer.  Both layers have a bias term that is not connected to the previous layer.  
 \end{itemize}
 
+\subsection*{Additional Experiments}
+\begin{itemize}
+\item \textbf{\textit{ReLu Activation Function}}: We include the use of the ReLu activation function for our hidden units and again monitor the performance against our previous experiments in terms of wall-clock time and epochs.
+\end{itemize}
 
 \section*{Results}
 
@@ -141,14 +145,15 @@ We found that all configurations of our experiments can be tuned to achieve very
 \begin{tabular}{|p{2cm}|p{6cm}|p{2cm}|p{1.5cm}|}
 \hline
 \textbf{Experiment No.}            & \textbf{Description}                                                          & \textbf{Wall-Clock Time [secs]} & \textbf{Epochs} \\ \hline
-1 & Mini-Batch of 128 + Weights from a Uniform Distribution{[}-1, 1{]} & 31.74                                              & 30                                  \\ \hline
-2 & Shuffling after Epochs and Averaging the Gradient                                         & 29.57                                              & 22                                  \\ \hline
-3 & Using Tanh Activation Function                                                            & 153.70                                             & 99                                  \\ \hline
-4 & Initialize Weights $w \sim \mathcal{N} \bigg(0, \  \frac{1}{\sqrt{fan-in}} \bigg)     $ & 10.60                                              & 6                                   \\ \hline
-5 & Momentum $\alpha$ = 0.9                                                                     & 10.95                                              & 6                                   \\ \hline
-6 & Halving Hidden Units to 32                                                                & 14.27                                              & 12                                  \\ \hline
-7 & Doubling Hidden Units to 128                                                              & 17.16                                              & 6                                   \\ \hline
-8 & Using 2 Hidden Layers                                                                     & 9.03                                               & 24                                    \\ \hline
+1 & Mini-Batch of 128 + Weights from a Uniform Distribution{[}-1, 1{]} & 24.2123                                              & 12                                  \\ \hline
+2 & Shuffling after Epochs and Averaging the Gradient                                         & 16.8966                                              & 8                                  \\ \hline
+3 & Using Tanh Activation Function                                                            & 38.6009 	 & 18                                  \\ \hline
+4 & Initialize Weights $w \sim \mathcal{N} \bigg(0, \  \frac{1}{\sqrt{fan-in}} \bigg)     $ & 17.9693                                              & 8                                   \\ \hline
+5 & Momentum $\alpha$ = 0.9                                                                     & 17.5322 & 7                                   \\ \hline
+6 & Halving Hidden Units to 32                                                                &  22.2573 & 14                                  \\ \hline
+7 & Doubling Hidden Units to 128                                                              & 33.542 & 8                                   \\ \hline
+8 & Using 2 Hidden Layers                                                                     & 9.0301                                               & 24                                    \\ \hline
+9 & Using ReLu Activation Function                                                       & 13.2923 & 7                                    \\ \hline
 \end{tabular}
 \end{table}
 
@@ -233,6 +238,7 @@ We found that all configurations of our experiments can be tuned to achieve very
 \item \textbf{\textit{Halving Hidden Units}}: Halving the number of hidden units does not decrease the model accuracy but increases the wall-clock time by about 50\% and the number of epochs by about 100\%.  From this we conclude that it was not by happenstance that we were asked to use 128 hidden units because that seems to be the sweet spot.  
 \item \textbf{\textit{Doubling Hidden Units}}: Doubling the number of units in the hidden layer to 128 resulted in the same training epochs (8) but more wall-clock time (50\% increase).  Doubling the number of hidden units doubles the number of weights.  The number of training epochs doesn't change because multiple neurons may be learning the same features.  
 \item \textbf{\textit{Using 2 Hidden Layers}}: Our intuition told us that two hidden layers should train longer but produce better models.  Our hypothesis was confirmed by obversving that we can achieve near state-of-the-art performance while epochs remained the same and training time in seconds doubles.
+\item \textbf{\textit{ReLu}}: We were pleasantly surprised that the ReLu activation function converged much more quickly than previous experiments and converged for most choices of hyperparameters. It performs approximately 30\% faster on wall-clock time and the same number of epochs as using the tanh activation.  
 \end{itemize}
 
 \section*{Conclusion}
@@ -270,7 +276,8 @@ For reproducibility, we provide our model hyperparameters as follows.
 5                       & 10                 & 0.0005                 & True             & Tanh                       & $\mathcal{N} \big(0, \frac{1}{\sqrt{\text{fan-in}}} \big)$ & True              & 64                    & 1                      \\ \hline
 6                       & 100                & 0.00005                & True             & Tanh                       & $\mathcal{N} \big(0, \frac{1}{\sqrt{\text{fan-in}}} \big)$ & True              & 32                    & 1                      \\ \hline
 7                       & 750                & 0.00005                & True             & Tanh                       & $\mathcal{N} \big(0, \frac{1}{\sqrt{\text{fan-in}}} \big)$ & True              & 128                   & 1                      \\ \hline
-8                       & 1                  & 1                      & True             & Tanh                       & $\mathcal{N} \big(0, \frac{1}{\sqrt{\text{fan-in}}} \big)$ & True              & 64                    & 2                      \\ \hline
+8                       & 100                  & 0.00001                      & True             & Tanh                       & $\mathcal{N} \big(0, \frac{1}{\sqrt{\text{fan-in}}} \big)$ & True              & 64                    & 2                      \\ \hline
+9                       & 200                  & 0.0003                      & True             & ReLu                       & $\mathcal{N} \big(0, \frac{1}{\sqrt{\text{fan-in}}} \big)$ & True              & 64                    & 1                      \\ \hline
 \end{tabular}
 \end{table}
 
