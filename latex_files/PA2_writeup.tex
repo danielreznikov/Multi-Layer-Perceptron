@@ -24,46 +24,23 @@ PID: A12440386 \\
 }
 
 
-
 \newcommand{\fix}{\marginpar{FIX}}
 \newcommand{\new}{\marginpar{NEW}}
 
 \nipsfinalcopy % Uncomment for camera-ready version
 
-\begin{filecontents}{biblio.bib}
-@inproceedings{LeCun:1998:EB:645754.668382,
- author = {LeCun, Yann and Bottou, L{\'e}on and Orr, Genevieve B. and M\"{u}ller, Klaus-Robert},
- title = {Efficient BackProp},
- booktitle = {Neural Networks: Tricks of the Trade, This Book is an Outgrowth of a 1996 NIPS Workshop},
- year = {1998},
- isbn = {3-540-65311-2},
- pages = {9--50},
- numpages = {42},
- url = {http://dl.acm.org/citation.cfm?id=645754.668382},
- acmid = {668382},
- publisher = {Springer-Verlag},
- address = {London, UK, UK},
-}
-\end{filecontents}
-
-
-
-
 \begin{document}
 
 \maketitle
-
 
 \begin{abstract}
 In this report, we explore the ``tricks of the Neural Network trade" starting from our softmax regression solution to the previous homework.  We extend our network to support different activation functions, weight initializations, and network topologies.  We achieve nearly state-of-the art results with our best models hitting 99.7\% accuracy on the validation set and 97.4\% on the independently sourced test set.   
 \end{abstract}
 
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Introduction 
 
 \section*{Introduction}
-The dataset that we are trying to classify is the classic MNIST dataset (sourced from Yann LeCun)\cite{Lecun}.  We aim to explore network topologies of various configurations for multi-layer perceptrons.  We implement efficient backpropogation of gradient descent manually.  We explore many common tricks of the trade and their sensitivity to hyperparameters and initial conditions.  In sum, this work crystallized our understanding of foundational neural network concepts.  What follows is an instructive discussion about our learning.  
+The dataset that we are trying to classify is the classic MNIST dataset (sourced from Yann LeCun)\cite{LeCun}.  We aim to explore network topologies of various configurations for multi-layer perceptrons.  We implement efficient backpropogation of gradient descent manually.  We explore many common tricks of the trade and their sensitivity to hyperparameters and initial conditions.  In sum, this work crystallized our understanding of foundational neural network concepts.  What follows is an instructive discussion about our learning.  
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Methods  
@@ -87,7 +64,7 @@ The dataset that we are trying to classify is the classic MNIST dataset (sourced
 \item \textbf{\textit{Shuffling After Epochs}}: we randomly permute our training data before splitting into mini-batches.  
 \item \textbf{\textit{Tanh Hidden Activation Function}}: to compare different members of the sigmoid class of functions, we implement the hyperbolic tangent function and use it for the activation for our hidden nodes.  These experiments were highly sensitive to initial weight conditions, so we invested great effort in tuning initial conditions.  The motivation for the tanh function is so that the hidden layer outputs have an average value of approximately 0 whereas the sigmoid will not.  
 \item \textbf{\textit{Initial Weight Setup}}: we further our analysis by initializing our weights to a normal distribution with mean = 0 and standard deviation = $\frac{1}{\sqrt{\text{fan-in}}}$.  The fan-in is the number of connections from the previous layer.
-\item \textbf{\textit{Momentum}}: leveraging the intuition from Lecun's `98 paper on momentum, we implement a momentum term that increases the step of the gradient with a term that is proportional to the running average of the gradients in the previous iterations.  
+\item \textbf{\textit{Momentum}}: leveraging the intuition from Lecun's `98 paper on momentum \cite{LeCun}, we implement a momentum term that increases the step of the gradient with a term that is proportional to the running average of the gradients in the previous iterations.  
 \end{itemize}
 
 \subsection*{Experiments with Network Topology}
@@ -233,7 +210,7 @@ We found that all configurations of our experiments can be tuned to achieve very
 \begin{itemize}
 \item \textbf{\textit{Mini-Batch}}: We are pleasantly surprised by how mini-batching greatly accelerates the rate of learning.  By exploiting the stochastic numerical processes, we are able to converge rapidly upon an optimal solution due to the redundancy in the training set.  This made training our large dataset more manageable. While we didn't experiment much with the batch size, we found that the initial setup of 128 was already a good balance between performance and being large enough to provide a meaningful sample of our training data. 
 \item \textbf{\textit{Shuffling}}: To further exploit the randomness in our stochastic approach, we introduce shuffling after each epoch.  This means our learning is more robust because the class distribution is rigorously randomized within mini-batches.  Our results show that while the wall-clock time was stable, the number of epochs decreased by 50\%. 
-\item \textbf{\textit{Tanh}}: Yann LeCun's paper developed our intuition as to why the tanh function will be more efficient during learning.  In comparison to the logistic sigmoid, the output weights of the tanh activation function will on average gravitate towards 0 whereas the range of the logistic sigmoid is always positive.  During backpropagation, this means that the weight change rules can move in both positive and negative directions.  We found that the tanh function was markedly better, achieving the 97\% accuracy in 6 epochs as compared to 22 and in 10.60 seconds. 
+\item \textbf{\textit{Tanh}}: Yann LeCun's paper \cite{LeCun} developed our intuition as to why the tanh function will be more efficient during learning.  In comparison to the logistic sigmoid, the output weights of the tanh activation function will on average gravitate towards 0 whereas the range of the logistic sigmoid is always positive.  During backpropagation, this means that the weight change rules can move in both positive and negative directions.  We found that the tanh function was markedly better, achieving the 97\% accuracy in 6 epochs as compared to 22 and in 10.60 seconds. 
 \item \textbf{\textit{Momentum}}: The loss function is locally convex, so the intution behind the momentum term is that it will push our model over local minima allowing it to converge faster and with higher accuracy.  Despite this intuition, we did not find significant improvements in either of our performance metrics (see table above).  We suspect this is happening because our other hyperparameters are already compensating sufficiently for fast convergence.  
 \item \textbf{\textit{Halving Hidden Units}}: Halving the number of hidden units does not decrease the model accuracy but increases the wall-clock time by about 50\% and the number of epochs by about 100\%.  From this we conclude that it was not by happenstance that we were asked to use 128 hidden units because that seems to be the sweet spot.  
 \item \textbf{\textit{Doubling Hidden Units}}: Doubling the number of units in the hidden layer to 128 resulted in the same training epochs (8) but more wall-clock time (50\% increase).  Doubling the number of hidden units doubles the number of weights.  The number of training epochs doesn't change because multiple neurons may be learning the same features.  
@@ -243,7 +220,7 @@ We found that all configurations of our experiments can be tuned to achieve very
 
 \section*{Conclusion}
 
-First, we are very grateful for this assignment because we have learned many interesting intuitions about neural networks.  The most profound learnings were the influence of the tanh activation function and the sensitivity of these networks to weight initializations.  We appreciated deeply that each subsequent experiment clearly demonstrated improvements over each predecessor.  Lecun's whitepaper and our lectures greatly enhanced our intuition about network topologies and tricks of the trade.  The rigorous mathematical analysis requried to both apply the recursive backpropagation was a rewarding challenge.  In sum, we are very pleased to report models that achieve 97.4\% validation set accuracy.  
+First, we are very grateful for this assignment because we have learned many interesting intuitions about neural networks.  The most profound learnings were the influence of the tanh activation function and the sensitivity of these networks to weight initializations.  We appreciated deeply that each subsequent experiment clearly demonstrated improvements over each predecessor.  Lecun's whitepaper \cite{LeCun} and our lectures greatly enhanced our intuition about network topologies and tricks of the trade.  The rigorous mathematical analysis requried to both apply the recursive backpropagation was a rewarding challenge.  In sum, we are very pleased to report models that achieve 97.4\% validation set accuracy.  
 
 
 \section*{Individual Contributions}
@@ -293,9 +270,12 @@ For reproducibility, we provide our model hyperparameters as follows.
 
 
 
-
-
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Bibliography
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\nocite{*}
+\bibliographystyle{unsrturl}
+\bibliography{biblio}
 
 
 

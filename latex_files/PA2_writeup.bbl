@@ -1,0 +1,9 @@
+\begin{thebibliography}{1}
+
+\bibitem{LeCun}
+Yann LeCun, L{\'e}on Bottou, Genevieve~B. Orr, and Klaus-Robert M\"{u}ller.
+\newblock Efficient backprop.
+\newblock pages 9--50, 1998.
+\newblock URL: \url{http://dl.acm.org/citation.cfm?id=645754.668382}.
+
+\end{thebibliography}
