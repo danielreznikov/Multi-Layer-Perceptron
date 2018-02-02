@@ -24,8 +24,8 @@ class MLP(object):
         if hidden_layers == 1:
             self.weights = [
                 # Experiment 3E, 4A, 4B
-                # np.random.uniform(low=-1.0, high=1.0, size=(self.input_units, self.hidden_units-1)),
-                # np.random.uniform(low=-1.0, high=1.0, size=(self.hidden_units, self.output_units))
+                # np.random.uniform(low=-0.5, high=0.5, size=(self.input_units, self.hidden_units-1)),
+                # np.random.uniform(low=-0.5, high=0.5, size=(self.hidden_units, self.output_units))
 
                 np.random.normal(loc=0, scale=1/np.sqrt(self.input_units),  size=(self.input_units, self.hidden_units-1)),
                 np.random.normal(loc=0, scale=1/np.sqrt(self.hidden_units), size=(self.hidden_units, self.output_units))
@@ -253,6 +253,8 @@ class MLP(object):
                     delta_hidden1 = utilities.sigmoid_activation(net_input_h1) * (1 - utilities.sigmoid_activation(net_input_h1)) * np.dot(delta_output, W_output[1:,:].T)
                 elif self.hidden_activation == utilities.tanh_activation:
                     delta_hidden1 = (2/3) * (1.7159 - 1.0/1.7159*np.power(utilities.tanh_activation(net_input_h1), 2)) * np.dot(delta_output, W_output[1:,:].T)
+                elif self.hidden_activation == utilities.relu_activation:
+                    delta_hidden1 =  (net_input_h1 >= 0) * np.dot(delta_output, W_output[1:,:].T) # fix relu here
                 else:
                     raise Exception("ERROR: Not supported hidden activation function!")
 
@@ -290,8 +292,8 @@ class MLP(object):
                     W_output = W_output + current_grad1 + (0.9 * momentum1)
                     W_hidden1 = W_hidden1 + current_grad2 + (0.9 * momentum2)
 
-                    momentum1 = current_grad1
-                    momentum2 = current_grad2
+                    momentum1 = current_grad1 + (0.9 * momentum1)
+                    momentum2 = current_grad2 + (0.9 * momentum2)
 
                 else:
                     W_output = W_output + alpha * np.dot(hidden_layer_out1.T, delta_output)
@@ -327,23 +329,28 @@ class MLP(object):
 
             # Early Stopping
             if epoch > 4 and utilities.early_stopping(self.losses['valid_loss']):
-                print("\tEarly Stopping at epoch =", epoch)
-                # break
+                print("\tEarly Stopping (3 consecutive increases) at epoch =", epoch)
+                break
             elif epoch > 2 and np.abs(self.losses['valid_loss'][-1] - self.losses['valid_loss'][-2]) < 0.00001:
                 print("\tEarly Stopping, error below epsilon.", self.losses['valid_loss'][-1])
-                # break
+                break
 
             # Debug statements
             if epoch % 10 == 0:
-                print("\nEpoch:", epoch)
-                print("\tAccuracy:", self.accuracies['train_acc'][-1])
-                print("\tLoss:", self.losses['train_loss'][-1])
+                print("Epoch:", epoch)
+                # print("\tTraining Accuracy:", self.accuracies['train_acc'][-1])
+                # print("\tValidation Accuracy:", self.accuracies['valid_acc'][-1])
+                # print("\tTest Accuracy:", self.accuracies['train_acc'][-1])
+                # print("\tLoss:", self.losses['train_loss'][-1])
 
         if not self.train_stats:
             self.train_stats = (time() - strt, epoch)
 
         print('\n\nTraining Done! Took', round(time() - strt, 3), " secs.")
-        print('Final Training Accuracy: ', self.accuracies['train_acc'][-1], " in ", epoch, " epochs.")
+        # print('Final Training Accuracy: ', self.accuracies['train_acc'][-1], " in ", epoch, " epochs.")
+        # print('Final Validation Accuracy: ', self.accuracies['valid_acc'][-1], " in ", epoch, " epochs.")
+        # print('Final Test Accuracy: ', self.accuracies['test_acc'][-1], " in ", epoch, " epochs.\n")
+
 
         return 1
 
@@ -414,18 +421,20 @@ class MLP(object):
                     current_grad2 = alpha * np.dot(hidden_layer_out1.T, delta_hidden2)
                     current_grad3 = alpha * np.dot(x_batch.T, delta_hidden1)
 
+
+                    W_output = W_output + current_grad1 + (0.9 * momentum1)
+                    W_hidden2 = W_hidden2 + current_grad2 + (0.9 * momentum2)
+                    W_hidden1 = W_hidden1 + current_grad3 + (0.9 * momentum3)
+
                     momentum1 = current_grad1 + (0.9 * momentum1)
                     momentum2 = current_grad2 + (0.9 * momentum2)
                     momentum3 = current_grad3 + (0.9 * momentum3)
-
-                    W_output = W_output + momentum1
-                    W_hidden2 = W_hidden2 + momentum2
-                    W_hidden1 = W_hidden1 + momentum3
 
                 else:
                     W_output = W_output + alpha * np.dot(hidden_layer_out2.T, delta_output)
                     W_hidden2 = W_hidden2 + alpha * np.dot(hidden_layer_out1.T, delta_hidden2)
                     W_hidden1 = W_hidden1 + alpha * np.dot(x_batch.T, delta_hidden1)
+
 
                 # Store the Model
                 self.weights[0] = W_hidden1
@@ -457,24 +466,24 @@ class MLP(object):
                 self.best_model[1] = self.weights
 
             # Early Stopping
-            if epoch > 4 and utilities.early_stopping(self.losses['valid_loss']):
-                print("\tEarly Stopping at epoch =", epoch)
-                # break
-            elif epoch > 2 and np.abs(self.losses['valid_loss'][-1] - self.losses['valid_loss'][-2]) < 0.00001:
-                print("\tEarly Stopping, error below epsilon.", self.losses['valid_loss'][-1])
+            # if epoch > 4 and utilities.early_stopping(self.losses['valid_loss']):
+            #     print("\tEarly Stopping at epoch =", epoch)
+            #     break
+            # elif epoch > 2 and np.abs(self.losses['valid_loss'][-1] - self.losses['valid_loss'][-2]) < 0.00001:
+            #     print("\tEarly Stopping, error below epsilon.", self.losses['valid_loss'][-1])
                 # break
 
             # Debug statements
             if epoch % 10 == 0:
-                print("\nEpoch:", epoch)
-                print("\tAccuracy:", self.accuracies['train_acc'][-1])
-                print("\tLoss:", self.losses['train_loss'][-1])
+                print("Epoch:", epoch)
+                # print("\tAccuracy:", self.accuracies['train_acc'][-1])
+                # print("\tLoss:", self.losses['train_loss'][-1])
 
         if not self.train_stats:
             self.train_stats = (time() - strt, epoch)
 
         print('\n\nTraining Done! Took', round(time() - strt, 3), " secs.")
-        print('Final Training Accuracy: ', self.accuracies['train_acc'][-1], " in ", epoch, " epochs.")
+        # print('Final Training Accuracy: ', self.accuracies['train_acc'][-1], " in ", epoch, " epochs.")
 
         return 1
 
@@ -722,7 +731,22 @@ class MLP(object):
         self.xTest = xTest
         self.yTest = yTest
 
+    def set_mlp_data_pca(self, data):
 
+        xTrain, yTrain, xValid, yValid, xTest, yTest = utilities.split_data(data)
+
+
+
+        self.xTrain = xTrain
+        self.yTrain = yTrain
+
+        self.xValid = xValid
+        self.yValid = yValid
+
+        self.xTest = xTest
+        self.yTest = yTest
+
+    # def pca(self, data):
 
 
 

@@ -111,3 +111,6 @@ def accuracy(actuals, predictions, softmax=True):
 def early_stopping(arr):
     '''True if last 3 epochs have higher loss than 4 epochs ago.'''
     return arr[-3] > arr[-4] and arr[-2] > arr[-3] and arr[-1] > arr[-4]
+
+def relu_activation(net_input):
+    return net_input * (net_input > 0)
